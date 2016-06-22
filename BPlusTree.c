@@ -12,57 +12,141 @@
 // When in debug mode we print the arrays and matrixes for better understanding of execution
 bool flagDebugMode = true;
 
-int numValues;
-int numNodes;
-int numLeafs;
+int maxOrder = 4;
 
+int totalNumValues;
+int totalNumNodes;
+int totalNumLeafs;
 
 int operated;
 
-
 struct treeNode {
-   int * values;
-   struct treeNode ** nodes;
+	int * numKeys;
+
+	int * values;
+	struct treeNode ** nodes;
 };
 
-typedef struct treeNode node;
+typedef struct treeNode typeNode;
 
-node * rootNode;
+typeNode * root;
 
 
-void commandInsert(int targetKey) {
-	if (flagDebugMode) {
-		printf("Inserindo %d!", targetKey);
+// Creates a new node
+typeNode * createNode(int baseValue) {
+	typeNode * newNode = (typeNode *)malloc(sizeof(typeNode));
+	newNode->nodes = (typeNode **)malloc(sizeof(typeNode) * (maxOrder+1));
+
+	newNode->values = (int *)malloc(sizeof(int) * (maxOrder));
+	newNode->values[0] = baseValue;
+
+	newNode->numKeys = (int *)malloc(sizeof(int));
+	newNode->numKeys[0] = 0;
+
+	return newNode;
+}
+
+// Creates a node all his descendants
+void destroyNode(typeNode * node) {
+	int position = 0;
+
+	int numValues = node->numKeys[0];
+
+	free(node->values);
+	// recursively free memory from alocated nodes
+	if (numValues > 0) {
+		destroyNode(node->nodes[0]);
+		while (position < numValues) {
+			destroyNode(node->nodes[position+1]);
+			position++;
+		}
 	}
+	free(node->nodes);
+	free(node->numKeys);
+	free(node);
+
+}
+
+
+// Insert a key in a given leave
+void insertInLeave(typeNode * leave, int key) {
+	totalNumValues++;
+
+	int currentIndex = leave->numKeys[0];
+
+	if (flagDebugMode) {
+		printf("Current Index %d\n", currentIndex);
+	}
+
+	leave->values[currentIndex] = key;
+	
+	if (currentIndex == 0) {
+		leave->nodes[currentIndex] = createNode((currentIndex+1)*100);
+	}
+	
+	leave->nodes[currentIndex+1] = createNode((currentIndex+2)*100);
+
+	leave->numKeys[0] = currentIndex + 1;
+}
+
+
+void commandInsert(int key) {
+	if (flagDebugMode) {
+		printf("Inserindo %d!\n", key);
+	}
+
+	insertInLeave(root, key);
 
 }
 
 
 void commandRemove(int targetKey) {
 	if (flagDebugMode) {
-		printf("Removendo %d!", targetKey);
+		printf("Removendo %d!\n", targetKey);
 	}
 
 }
 
 
-void commandPrint() {
-	if (flagDebugMode) {
-		printf("Test print...");
-	}
+void printNode(typeNode * node) {
+	int position = 0;
+	int numValues = node->numKeys[0];
 
+	printf("Keys: ");
+	while (position <= numValues) {
+		printf("%d ", node->values[position]);
+		position++;
+	}
+	printf("\n");
+
+	if (numValues > 0) {
+		position = 0;
+		printf("Sub Keys: ");
+		while (position <= numValues) {
+			printf("%d ", node->nodes[position]->values[0]);
+			position++;
+		}
+		printf("\n");
+	}
+}
+
+void commandPrint() {
+	printNode(root);
 }
 
 
 // Allocate through malloc the needed resources
 void createTree() {
-	rootNode = (node *)malloc(sizeof(node));
-}
+	root = createNode(19);
 
+	totalNumValues = 0;
+	totalNumNodes = 1;
+	totalNumLeafs = 1;
+}
 
 // Destroy all malloc allocated resources
 void destroyTree() {
-	free(rootNode);
+	destroyNode(root);
 }
 
 
@@ -91,9 +175,7 @@ void runUserIterations() {
 
 
 // The magic starts here!
-int main(int numParams, char *params[]){
-	char *arquivoEntrada = params[1];
-	char *arquivoSaida = params[2];
+int main(){
 
 	createTree();
 
