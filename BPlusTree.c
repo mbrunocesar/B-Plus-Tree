@@ -14,12 +14,6 @@ bool flagDebugMode = true;
 
 int maxOrder = 4;
 
-int totalNumValues;
-int totalNumNodes;
-int totalNumLeafs;
-
-int operated;
-
 struct treeNode {
 	int * numKeys;
 
@@ -70,8 +64,6 @@ void destroyNode(typeNode * node) {
 
 // Insert a key in a given leave
 void insertInLeave(typeNode * leave, int key) {
-	totalNumValues++;
-
 	int currentIndex = leave->numKeys[0];
 
 	if (flagDebugMode) {
@@ -138,10 +130,6 @@ void commandPrint() {
 // Allocate through malloc the needed resources
 void createTree() {
 	root = createNode(19);
-
-	totalNumValues = 0;
-	totalNumNodes = 1;
-	totalNumLeafs = 1;
 }
 
 // Destroy all malloc allocated resources
