@@ -1,1 +1,14 @@
-TestInputs
+insere 10
+remove 10
+insere 20
+insere 40
+print
+insere 55
+remove 55
+insere 33
+print
+insere 15
+print
+remove 20
+print
+fim
