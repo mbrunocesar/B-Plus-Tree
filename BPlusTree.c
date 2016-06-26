@@ -9,11 +9,8 @@
 // NUSP: 8516351
 //
 
-// When in debug mode we print the arrays and matrixes for better understanding of execution
-bool flagDebugMode = true;
 
-int maxOrder = 4;
-
+// STRUCTURE DEFINITION
 struct treeNode {
 	int * numKeys;
 
@@ -23,7 +20,24 @@ struct treeNode {
 
 typedef struct treeNode typeNode;
 
+
+// When in debug mode we print the arrays and matrixes for better understanding of execution
+bool flagDebugMode = true;
+
+int maxOrder = 4;
+int treeHeight = 1;
+
+
 typeNode * root;
+
+
+int numKeys(typeNode * node) {
+	return node->numKeys[0];
+}
+
+void setNumKeys(typeNode * node, int value) {
+	node->numKeys[0] = value;
+}
 
 
 // Creates a new node
@@ -38,7 +52,7 @@ typeNode * createNode(int baseValue) {
 	newNode->values[0] = baseValue;
 
 	newNode->numKeys = (int *)malloc(sizeof(int));
-	newNode->numKeys[0] = 0;
+	setNumKeys(newNode, 0);
 
 	return newNode;
 }
@@ -47,16 +61,16 @@ typeNode * createNode(int baseValue) {
 void destroyNode(typeNode * node) {
 	int position = 0;
 
-	int numValues = node->numKeys[0];
+	int size = numKeys(node);
 
 	free(node->values);
 
 	// recursively free memory from alocated nodes
-	if (numValues > 0) {
+	if (size > 0) {
 		destroyNode(node->nodes[0]);
 
 		position++;
-		while (position <= numValues) {
+		while (position <= size) {
 			destroyNode(node->nodes[position]);
 			position++;
 		}
@@ -73,7 +87,7 @@ void destroyNode(typeNode * node) {
 //
 // Find key insert position 
 int findKeyInsertPosition(typeNode * node, int key) {
-	int lastIndex = node->numKeys[0];
+	int lastIndex = numKeys(node);
 
 	int position = 0;
 	while (key > node->values[position] && position < lastIndex) {
@@ -85,7 +99,7 @@ int findKeyInsertPosition(typeNode * node, int key) {
 // Find key position or -1 for failure 
 int findKeyPosition(typeNode * node, int key) {
 	int keyPosition = -1;
-	int lastIndex = node->numKeys[0];
+	int lastIndex = numKeys(node);
 
 	int position = 0;
 	while (position < lastIndex) {
@@ -119,43 +133,72 @@ void shiftLeftPositions(typeNode * node, int startPosition, int endPosition) {
 }
 
 
-
-bool isEmptyNode(typeNode * leave) {
-	return leave->numKeys[0] == 0;
+//
+// START GENERAL METHODS
+//
+bool isRoot(typeNode * parent) {
+	return parent == NULL;
 }
 
+bool isLeave(int height) {
+	return height == treeHeight;
+}
+
+bool isEmptyNode(typeNode * node) {
+	return numKeys(node) == 0;
+}
+
+bool haveOverflow(typeNode * node) {
+	return numKeys(node) > maxOrder; 
+}
+
+bool keyIsOnTree(typeNode * node, int key) {
+	bool isOnTree = false;
+
+	if (numKeys(node) != 0) {
+		if (findKeyPosition(node, key) != -1) {
+			isOnTree = true;
+
+		} else {
+			int position = findKeyInsertPosition(node, key);
+			isOnTree = keyIsOnTree(node->nodes[position], key);
+		}
+	}
+
+	return isOnTree;
+}
 
 //
 // START INSERTION METHODS
 //
 void insertInEmptyLeave(typeNode * leave, int key) {
-	leave->nodes[0] = createNode((1)*100);
-	leave->nodes[1] = createNode((2)*100);
+	leave->nodes[0] = createNode(-1);
+	leave->nodes[1] = createNode(-1);
 
 	leave->values[0] = key;
 }
 
 void insertInLeaveLastPosition(typeNode * leave, int key) {
-	int lastIndex = leave->numKeys[0];
+	int lastIndex = numKeys(leave);
 
-	leave->nodes[lastIndex+1] = createNode((lastIndex+2)*100);
+	leave->nodes[lastIndex+1] = createNode(-1);
 
 	leave->values[lastIndex] = key;
 }
 
 void insertInLeavePosition(typeNode * leave, int key, int index) {
-	int lastIndex = leave->numKeys[0];
+	int lastIndex = numKeys(leave);
 
 	shiftRightPositions(leave, index, lastIndex+1);
 
-	leave->nodes[index+1] = createNode((lastIndex+2)*100);
+	leave->nodes[index+1] = createNode(-1);
 
 	leave->values[index] = key;
 }
 
-// Insert a key in a given leave
-void insertInLeave(typeNode * leave, int key) {
-	int size = leave->numKeys[0];
+
+void insertInLeave(typeNode * leave, int key, typeNode * parent) {
+	int size = numKeys(leave);
 
 	if (isEmptyNode(leave)) {
 		insertInEmptyLeave(leave, key);
@@ -170,11 +213,47 @@ void insertInLeave(typeNode * leave, int key) {
 		}
 	}
 
-	leave->numKeys[0] = size + 1;
+	setNumKeys(leave, (size + 1));
 }
 
+// Special case when overflowing the root element
+void keepOnlyMiddleElementInNode(typeNode * node) {
+	typeNode * newNode = createNode(-1);
 
-void insertInNode(typeNode * node, int key) {
+	int middleIndex = (int) (numKeys(node) / 2);
+
+	insertInLeave(newNode, node->values[middleIndex], NULL);
+
+	int position = 0;
+	typeNode * subNode = newNode->nodes[0];
+	while (position < middleIndex) {
+		insertInNode(subNode, node->values[position]);
+		position++;
+	}
+
+	position = middleIndex + 1;
+	subNode = newNode->nodes[1];
+	while (position <= maxOrder) {
+		insertInNode(subNode, node->values[position]);
+		position++;
+	}
+
+	root = newNode;
+	treeHeight++;
+}
+
+void insertInNode(typeNode * node, int key, typeNode * parent, int height) {
+	if (isRoot(parent) && isLeave(height)) {
+		insertInLeave(node, key, parent);
+
+		if (haveOverflow(node)) {
+			keepOnlyMiddleElementInNode(node);
+		}
+
+	} else {
+		printf("Inserting outside root\n");
+		insertInLeave(node, key, parent);
+	}
 
 }
 
@@ -184,10 +263,15 @@ void commandInsert(int key) {
 		printf("Inserindo %d!\n", key);
 	}
 
-	insertInLeave(root, key);
+	if (!keyIsOnTree(root, key)) {
+		insertInNode(root, key, NULL, 1);
+
+	} else {
+		printf("Error - key %d already on tree!\n", key);
+	}
 }
 
-
+	
 //
 // START REMOTION METHODS
 //
@@ -199,7 +283,7 @@ void removeUnitaryValue(typeNode * leave) {
 }
 
 void removeFromLeaveLastPosition(typeNode * leave) {
-	int lastIndex = leave->numKeys[0];
+	int lastIndex = numKeys(leave);
 
 	destroyNode(leave->nodes[lastIndex]);
 
@@ -207,7 +291,7 @@ void removeFromLeaveLastPosition(typeNode * leave) {
 }
 
 void removeFromLeavePosition(typeNode * leave, int index) {
-	int lastIndex = leave->numKeys[0];
+	int lastIndex = numKeys(leave);
 
 	leave->values[index] = 0;
 
@@ -216,9 +300,9 @@ void removeFromLeavePosition(typeNode * leave, int index) {
 	shiftLeftPositions(leave, index, lastIndex);
 }
 
-// Insert a key in a given leave
+
 void removeFromLeave(typeNode * leave, int key) {
-	int size = leave->numKeys[0];
+	int size = numKeys(leave);
 
 	if (size == 1) {
 		removeUnitaryValue(leave);
@@ -228,19 +312,24 @@ void removeFromLeave(typeNode * leave, int key) {
 
 		if (position == -1) {
 			printf("Key is not in the list!\n");
-
 			// avoid over decreasing size
 			size = size + 1;
+
 		} else if (position == size - 1) {
-			printf("Removing last\n");
+			if (flagDebugMode) {
+				printf("Removing last\n");
+			}
 			removeFromLeaveLastPosition(leave);
+
 		} else {
-			printf("Position %d\n", position);
+			if (flagDebugMode) {
+				printf("Removing from Position %d\n", position);
+			}
 			removeFromLeavePosition(leave, position);
 		}
 	}
 
-	leave->numKeys[0] = size - 1;
+	setNumKeys(leave, (size - 1));
 }
 
 void removeFromNode(typeNode * node, int key) {
@@ -264,23 +353,33 @@ void commandRemove(int key) {
 //
 void printNode(typeNode * node) {
 	int position = 0;
-	int numValues = node->numKeys[0];
+	int numValues = numKeys(node);
 
 	printf("Keys: ");
 	while (position < numValues) {
 		printf("%d ", node->values[position]);
 		position++;
 	}
-	printf("\n");
+	if (position > 0) {
+		printf("\n");
+	}
 
 	if (numValues > 0) {
 		position = 0;
-		printf("Sub Keys: ");
-		while (position <= numValues) {
-			printf("%d ", node->nodes[position]->values[0]);
-			position++;
+
+		if (numKeys(node->nodes[0]) > 0) {
+			printf("Sub Keys:\n");
+			while (position <= numValues) {
+				if (node->nodes[position]->numKeys[0] > 0) {
+					printNode(node->nodes[position]);
+				}
+				position++;
+			}
+
+			if (position > 0) {
+				printf("\n");
+			}
 		}
-		printf("\n");
 	}
 }
 
