@@ -23,10 +23,13 @@ typedef struct treeNode typeNode;
 
 // When in debug mode we print the arrays and matrixes for better understanding of execution
 bool flagDebugMode = false;
+bool advFlagDebugMode = true;
 
 int maxOrder = 4;
+
 int treeHeight = 1;
 
+int totalNumKeys = 0;
 
 typeNode * root;
 
@@ -252,11 +255,11 @@ void insertInNonLeave(typeNode * node, int key, int height) {
 
 		insertInNode(newNode, targetKey, node, height);
 
-		removeFromNode(subNode, targetKey);
+		removeFromNode(subNode, targetKey, node, height);
 		index--;
 	}
 
-	removeFromNode(subNode, key);
+	removeFromNode(subNode, key, node, height);
 
 	setNumKeys(node, (size + 1));
 }
@@ -335,7 +338,6 @@ void insertInNode(typeNode * node, int key, typeNode * parent, int height) {
 				keepOnlyMiddleElementInNode(node);
 			}
 		} else {
-
 			if (flagDebugMode) {
 				printf("Inserting in node %d\n", height);
 			}
@@ -387,6 +389,7 @@ void commandInsert(int key) {
 
 	if (!keyIsOnTree(root, key)) {
 		insertInNode(root, key, NULL, 1);
+		totalNumKeys++;
 
 	} else {
 		if (flagDebugMode) {
@@ -435,7 +438,9 @@ void removeFromLeave(typeNode * leave, int key) {
 		int position = findKeyPosition(leave, key);
 
 		if (position == -1) {
-			printf("Key is not in the list!\n");
+			if (flagDebugMode) {
+				printf("Key is not in the list!\n");
+			}
 			// avoid over decreasing size
 			size = size + 1;
 
@@ -456,9 +461,43 @@ void removeFromLeave(typeNode * leave, int key) {
 	setNumKeys(leave, (size - 1));
 }
 
-void removeFromNode(typeNode * node, int key) {
+void removeFromNonLeave(typeNode * leave, int key) {
+	int size = numKeys(leave);
 
-	removeFromLeave(node, key);
+	int position = findKeyPosition(leave, key);
+
+	if (position == -1) {
+		if (flagDebugMode) {
+			printf("Key is not in the list!\n");
+		}
+		// avoid over decreasing size
+		size = size + 1;
+
+	} else {
+		if (flagDebugMode) {
+			printf("Removing from Position %d\n", position);
+		}
+		removeFromLeavePosition(leave, position);
+	}
+
+	setNumKeys(leave, (size - 1));
+}
+
+
+void removeFromNode(typeNode * node, int key, typeNode * parent, int height) {
+	if (isLeave(height)) {
+		removeFromLeave(node, key);
+	} else {
+
+		if (findKeyPosition(node, key) != -1) {
+			removeFromNonLeave(node, key);
+
+		} else {
+			int position = findKeyInsertPosition(node, key);
+			removeFromNode(node->nodes[position], key, node, height + 1);
+		}
+
+	}
 
 }
 
@@ -507,8 +546,29 @@ void printNode(typeNode * node) {
 	}
 }
 
+void printOrdered(typeNode * node) {
+	int size = numKeys(node);
+	int position = 0;
+
+	if (size > 0) {
+		while (position < size) {
+			printOrdered(node->nodes[position]);
+			printf("%d ", node->values[position]);
+			position++;
+		}
+		printOrdered(node->nodes[size]);
+	}
+}
+
 void commandPrint() {
-	printNode(root);
+	if (flagDebugMode) {
+		printf("Total Num Keys %d!\n", totalNumKeys);
+	}
+
+	if (advFlagDebugMode) {
+		printNode(root);
+	}
+	printOrdered(root);
 }
 
 
