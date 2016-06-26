@@ -6,9 +6,14 @@ print
 insere 55
 remove 55
 insere 33
+insere 20
 print
 insere 15
 print
 remove 20
+print
+insere 10
+insere 60
+insere 60
 print
 fim
