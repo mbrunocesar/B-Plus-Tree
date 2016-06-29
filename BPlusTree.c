@@ -43,6 +43,26 @@ void setNumKeys(typeNode * node, int value) {
 }
 
 
+//
+// START GENERAL METHODS
+//
+bool isRoot(typeNode * parent) {
+	return parent == NULL;
+}
+
+bool isLeave(int height) {
+	return height == treeHeight;
+}
+
+bool isEmptyNode(typeNode * node) {
+	return numKeys(node) == 0;
+}
+
+bool haveOverflow(typeNode * node) {
+	return numKeys(node) > maxOrder; 
+}
+
+
 // Creates a new node
 typeNode * createNode(int baseValue) {
 	// used to allow the node to overflow before splitting it
@@ -82,6 +102,68 @@ void destroyNode(typeNode * node) {
 	free(node->numKeys);
 	free(node);
 
+}
+
+
+typeNode * redistributeNodes(typeNode * leftNode, typeNode * rightNode, int height) {
+	typeNode * newNode = createNode(-1);
+	
+	int leftNumKeys = numKeys(leftNode);
+	int rightNumKeys = numKeys(rightNode);
+
+	int sumNumKeys = leftNumKeys + rightNumKeys;
+	
+	if (sumNumKeys <= maxOrder) {
+		if (isLeave(height)) {
+			int position = 0;
+			while (position < leftNumKeys) {
+				insertInLeave(newNode, leftNode->values[position]);
+			}
+
+			position = 0;
+			while (position < rightNumKeys) {
+				insertInLeave(newNode, rightNode->values[position]);
+			}
+		} else {
+			// TODO
+		}
+	} else {
+		// TODO
+	}
+
+	return newNode;
+}
+
+
+int getReplacementAndBalanceNodes(typeNode * leftNode, typeNode * rightNode, int height) {
+	int replacementKey = -1;
+
+	int leftNumKeys = numKeys(leftNode);
+	int rightNumKeys = numKeys(rightNode);
+
+	if (leftNumKeys > rightNumKeys) {
+		replacementKey = leftNode->values[leftNumKeys-1];
+
+		typeNode * mergedNode = redistributeNodes(
+			leftNode->nodes[leftNumKeys-1], leftNode->nodes[leftNumKeys], height);
+
+		leftNode->nodes[leftNumKeys-1] = mergedNode;
+
+		setNumKeys(leftNode, leftNumKeys-1);
+	} else {
+		replacementKey = rightNode->values[0];
+
+		typeNode * mergedNode = redistributeNodes(
+			rightNode->nodes[0], rightNode->nodes[1], height);
+
+		rightNode->nodes[1] = mergedNode;
+
+		shiftLeftPositions(rightNode, 0, rightNumKeys);
+
+		setNumKeys(rightNode, rightNumKeys-1);
+	}
+
+	return replacementKey;
 }
 
 
@@ -143,24 +225,6 @@ void shiftLeftPositions(typeNode * node, int startPosition, int endPosition) {
 }
 
 
-//
-// START GENERAL METHODS
-//
-bool isRoot(typeNode * parent) {
-	return parent == NULL;
-}
-
-bool isLeave(int height) {
-	return height == treeHeight;
-}
-
-bool isEmptyNode(typeNode * node) {
-	return numKeys(node) == 0;
-}
-
-bool haveOverflow(typeNode * node) {
-	return numKeys(node) > maxOrder; 
-}
 
 bool keyIsOnTree(typeNode * node, int key) {
 	bool isOnTree = false;
@@ -244,22 +308,24 @@ void insertInNonLeave(typeNode * node, int key, int height) {
 
 	insertInNonLeavePosition(node, key, position);
 
-	typeNode * subNode = node->nodes[position];
+	typeNode * oldNode = node->nodes[position];
 	typeNode * newNode = node->nodes[position+1];
 
 	int middleIndex = (int) (maxOrder/2);
-	int index = maxOrder;
+	
+	int index = 0;
+	while (index < middleIndex) {
+		newNode->values[index] = oldNode->values[index + middleIndex + 1];
 
-	while (index > middleIndex) {
-		int targetKey = subNode->values[index];
-
-		insertInNode(newNode, targetKey, node, height);
-
-		removeFromNode(subNode, targetKey, node, height);
-		index--;
+		newNode->nodes[index] = oldNode->nodes[index + middleIndex + 1];
+		index++;
 	}
 
-	removeFromNode(subNode, key, node, height);
+	newNode->nodes[index] = oldNode->nodes[index + middleIndex + 1];
+	oldNode->nodes[index + middleIndex + 1] = NULL;
+
+	setNumKeys(newNode, index);
+	setNumKeys(oldNode, numKeys(oldNode) - index - 1);
 
 	setNumKeys(node, (size + 1));
 }
@@ -310,7 +376,7 @@ void keepOnlyMiddleElementInNode(typeNode * node) {
 			position++;
 		}
 		leftNode->nodes[position] = node->nodes[position];
-		leftNode->numKeys[0] = 2;
+		leftNode->numKeys[0] = middleIndex;
 
 		position = 0;
 		while (position <= maxOrder) {
@@ -319,7 +385,7 @@ void keepOnlyMiddleElementInNode(typeNode * node) {
 			position++;
 		}
 		rightNode->nodes[position] = node->nodes[position+middleIndex+1];
-		rightNode->numKeys[0] = 2;
+		rightNode->numKeys[0] = middleIndex;
 
 	}
 
@@ -461,26 +527,21 @@ void removeFromLeave(typeNode * leave, int key) {
 	setNumKeys(leave, (size - 1));
 }
 
-void removeFromNonLeave(typeNode * leave, int key) {
-	int size = numKeys(leave);
+void removeFromNonLeave(typeNode * node, int index, int height) {
+	int lastIndex = numKeys(node);
 
-	int position = findKeyPosition(leave, key);
+	typeNode * leftNode = node->nodes[index];
+	typeNode * rightNode = node->nodes[index+1];
 
-	if (position == -1) {
-		if (flagDebugMode) {
-			printf("Key is not in the list!\n");
-		}
-		// avoid over decreasing size
-		size = size + 1;
+	int leftNumKeys = numKeys(leftNode);
+	int rightNumKeys = numKeys(rightNode);
 
-	} else {
-		if (flagDebugMode) {
-			printf("Removing from Position %d\n", position);
-		}
-		removeFromLeavePosition(leave, position);
-	}
+	int combinedNumKeys = leftNumKeys + rightNumKeys;
 
-	setNumKeys(leave, (size - 1));
+	bool pullFromLeft = leftNumKeys > rightNumKeys;
+	int replacementKey = getReplacementAndBalanceNodes(leftNode, rightNode, height+1);
+	node->values[index] = replacementKey;
+
 }
 
 
@@ -488,9 +549,9 @@ void removeFromNode(typeNode * node, int key, typeNode * parent, int height) {
 	if (isLeave(height)) {
 		removeFromLeave(node, key);
 	} else {
-
-		if (findKeyPosition(node, key) != -1) {
-			removeFromNonLeave(node, key);
+		int position = findKeyPosition(node, key);
+		if (position != -1) {
+			removeFromNonLeave(node, position, height);
 
 		} else {
 			int position = findKeyInsertPosition(node, key);
@@ -569,6 +630,7 @@ void commandPrint() {
 		printNode(root);
 	}
 	printOrdered(root);
+	printf("\n");
 }
 
 
